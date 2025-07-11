@@ -3,6 +3,8 @@ import cv2
 import numpy as np
 import argparse
 import time
+from ultralytics import YOLO
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--webcam', help="True/False", default=True)
@@ -15,8 +17,7 @@ with open('coco.names', 'r') as f:
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Load PyTorch YOLOv3 pretrained model from torch hub
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+model = YOLO('yolov10x.pt')  # Load a pre-trained YOLOv10 model
 model.to(device)
 model.eval()
 
@@ -25,13 +26,11 @@ def start_webcam():
     return cap
 
 def detect_objects_pytorch(img):
-    # Convert BGR opencv frame to RGB
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    # Inference expects list of images
     results = model([img_rgb])  
 
-    detections = results.xyxy[0].cpu().numpy()
+    detections = results[0].boxes.data.cpu().numpy()
 
     return detections
 
@@ -41,7 +40,7 @@ def draw_labels_pytorch(detections, img):
         label = classes[int(cls)]
         color = (0, 255, 0)
         cv2.rectangle(img, (x1,y1), (x2,y2), color, 2)
-        cv2.putText(img, f'{label} {conf:.2f}', (x1, y1 - 10),
+        cv2.putText(img, f'{label}', (x1, y1 - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
     cv2.imshow('Image', img)
 
@@ -62,7 +61,6 @@ def webcam_detect():
         detections = detect_objects_pytorch(frame)
         draw_labels_pytorch(detections, frame)
 
-        # Put FPS text on the frame
         cv2.putText(frame, f'FPS: {fps:.2f}', (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
@@ -79,5 +77,5 @@ if __name__ == '__main__':
     verbose = args.verbose
     if webcam:
         if verbose:
-            print('---- Starting Web Cam object detection on PyTorch YOLOv3 ----')
+            print('---- Starting Web Cam object detection ----')
         webcam_detect()
